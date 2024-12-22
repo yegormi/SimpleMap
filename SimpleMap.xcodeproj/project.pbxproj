@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8C85A8E72D15F05600513FB4 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 8C85A8E62D15F05600513FB4 /* ComposableArchitecture */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		8C85A8D42D15EF7E00513FB4 /* SimpleMap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleMap.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C85A8E72D15F05600513FB4 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = SimpleMap;
 			packageProductDependencies = (
+				8C85A8E62D15F05600513FB4 /* ComposableArchitecture */,
 			);
 			productName = SimpleMap;
 			productReference = 8C85A8D42D15EF7E00513FB4 /* SimpleMap.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 8C85A8CB2D15EF7E00513FB4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8C85A8E52D15F05600513FB4 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8C85A8D52D15EF7E00513FB4 /* Products */;
 			projectDirPath = "";
@@ -255,6 +264,8 @@
 				DEVELOPMENT_TEAM = MRBGL97LQU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We require to track user's current location";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We require to track user's current location";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -284,6 +295,8 @@
 				DEVELOPMENT_TEAM = MRBGL97LQU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "We require to track user's current location";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We require to track user's current location";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -324,6 +337,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8C85A8E52D15F05600513FB4 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.17.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8C85A8E62D15F05600513FB4 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8C85A8E52D15F05600513FB4 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8C85A8CC2D15EF7E00513FB4 /* Project object */;
 }
