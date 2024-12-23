@@ -12,16 +12,16 @@ import SwiftUI
 @ViewAction(for: LocationMap.self)
 public struct LocationMapView: View {
     @Bindable public var store: StoreOf<LocationMap>
-    
+
     public init(store: StoreOf<LocationMap>) {
         self.store = store
     }
-    
+
     public var body: some View {
-        Map(position: self.$store.camera.cameraPosition) {
+        Map(position: $store.camera.cameraPosition) {
             UserAnnotation()
         }
-        .animation(.spring, value: self.store.camera.cameraPosition)
+        .animation(.spring, value: store.camera.cameraPosition)
         .mapControls {
             MapUserLocationButton()
             MapCompass()
@@ -46,13 +46,13 @@ public struct LocationMapView: View {
             send(.onAppear)
         }
         .alert(
-            store: self.store.scope(
+            store: store.scope(
                 state: \.$destination.alert,
                 action: \.destination.alert
             )
         )
         .alert(
-            store: self.store.scope(
+            store: store.scope(
                 state: \.$destination.plainAlert,
                 action: \.destination.plainAlert
             )

@@ -5,17 +5,17 @@
 //  Created by Yehor Myropoltsev on 20.12.2024.
 //
 
+import Combine
 import CoreLocation
 import Dependencies
 import Foundation
-import Combine
 
 extension LocationClient: DependencyKey {
     public static var liveValue: LocationClient {
         let manager = CLLocationManager()
         let delegate = Delegate()
         manager.delegate = delegate
-        
+
         return Self(
             requestAuthorization: { type in
                 switch type {
@@ -65,17 +65,17 @@ private extension LocationClient {
         let authorizationSubject = PassthroughSubject<CLAuthorizationStatus, Never>()
         let locationSubject = PassthroughSubject<CLLocation, Never>()
         let errorSubject = PassthroughSubject<Error, Never>()
-        
-        func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+
+        func locationManager(_: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
             authorizationSubject.send(status)
         }
-        
-        func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+
+        func locationManager(_: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
             guard let location = locations.last else { return }
             locationSubject.send(location)
         }
-        
-        func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+
+        func locationManager(_: CLLocationManager, didFailWithError error: Error) {
             errorSubject.send(error)
         }
     }

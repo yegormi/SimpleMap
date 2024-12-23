@@ -5,9 +5,9 @@
 //  Created by Yehor Myropoltsev on 20.12.2024.
 //
 
+import CoreLocation
 import Dependencies
 import DependenciesMacros
-import CoreLocation
 import Foundation
 
 @DependencyClient
