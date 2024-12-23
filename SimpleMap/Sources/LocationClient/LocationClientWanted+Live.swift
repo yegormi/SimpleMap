@@ -1,24 +1,22 @@
 //
-//  LocationError.swift
+//  LocationClient+Live.swift
 //  SimpleMap
 //
 //  Created by Yehor Myropoltsev on 20.12.2024.
 //
 
 import CoreLocation
-import Combine
 import Dependencies
 import Foundation
+import Combine
 
 extension LocationClient: DependencyKey {
     public static var liveValue: LocationClient {
         let manager = CLLocationManager()
-        let subject = PassthroughSubject<Action, Never>()
-        
-        let delegate = Delegate(subject: subject)
+        let delegate = Delegate()
         manager.delegate = delegate
         
-        return LocationClient(
+        return Self(
             requestAuthorization: { type in
                 switch type {
                 case .whenInUse:
@@ -27,22 +25,40 @@ extension LocationClient: DependencyKey {
                     manager.requestAlwaysAuthorization()
                 }
             },
-            delegateUpdates: { subject.values }
+            authorizationStatus: {
+                manager.authorizationStatus
+            },
+            start: {
+                manager.startUpdatingLocation()
+            },
+            stop: {
+                manager.stopUpdatingLocation()
+            },
+            requestLocation: {
+                manager.requestLocation()
+            },
+            events: {
+                delegate.subject.values
+            }
         )
     }
 }
 
 private extension LocationClient {
     final class Delegate: NSObject, CLLocationManagerDelegate {
-        let subject: PassthroughSubject<Action, Never>
+        let subject = PassthroughSubject<Event, Never>()
         
-        init(subject: PassthroughSubject<Action, Never>) {
-            self.subject = subject
-            super.init()
+        func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+            subject.send(.didChangeAuthorization(status))
         }
         
-        func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-            subject.send(.didChangeAuthorization(manager.authorizationStatus))
+        func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+            guard let location = locations.last else { return }
+            subject.send(.didUpdateLocation(location))
+        }
+        
+        func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+            subject.send(.didFailWithError(error))
         }
     }
 }

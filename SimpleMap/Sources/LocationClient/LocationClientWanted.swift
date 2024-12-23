@@ -13,19 +13,29 @@ import Foundation
 @DependencyClient
 public struct LocationClient: Sendable {
     public var requestAuthorization: @Sendable (_ type: AuthorizationType) async -> Void
-    public var delegateUpdates: @Sendable () -> any AsyncSequence<Action, Never> = { AsyncStream.never }
+    public var authorizationStatus: @Sendable () -> CLAuthorizationStatus = { .notDetermined }
+    public var start: @Sendable () async -> Void
+    public var stop: @Sendable () async -> Void
+    public var requestLocation: @Sendable () async -> Void
+    public var events: @Sendable () -> any AsyncSequence<Event, Never> = { AsyncStream.never }
 }
 
 public extension LocationClient {
     static let mock = LocationClient(
-        requestAuthorization: { _ in },
-        delegateUpdates: { unimplemented("\(Self.self).delegateUpdates", placeholder: AsyncStream.never) }
+        requestAuthorization: { _ in unimplemented("\(Self.self).requestAuthorization") },
+        authorizationStatus: { unimplemented("\(Self.self).authorizationStatus", placeholder: .notDetermined) },
+        start: { unimplemented("\(Self.self).start") },
+        stop: { unimplemented("\(Self.self).stop") },
+        requestLocation: { unimplemented("\(Self.self).requestLocation") },
+        events: { unimplemented("\(Self.self).delegateUpdates", placeholder: AsyncStream.never) }
     )
 }
 
 public extension LocationClient {
-    enum Action {
+    enum Event {
         case didChangeAuthorization(CLAuthorizationStatus)
+        case didUpdateLocation(CLLocation)
+        case didFailWithError(Error)
     }
     
     enum AuthorizationType {

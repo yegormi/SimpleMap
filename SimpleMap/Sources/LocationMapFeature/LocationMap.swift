@@ -13,7 +13,6 @@ public struct LocationMap: Reducer, Sendable {
     public struct State: Equatable {
         @Presents var destination: Destination.State?
         var cameraPosition: MapCameraPosition
-        var isLoading = false
         
         public init() {
             self.cameraPosition = .region(MKCoordinateRegion(
@@ -32,14 +31,15 @@ public struct LocationMap: Reducer, Sendable {
         public enum Delegate {}
         
         public enum Internal {
-            case authorizationStatusUpdated(CLAuthorizationStatus)
+            case regionChanged(MKCoordinateRegion)
+            case authorizationStatusChanged(CLAuthorizationStatus)
+            case startLocationUpdates
         }
         
         public enum View: BindableAction {
             case binding(BindingAction<State>)
             case onAppear
             case getCurrentLocationButtonTapped
-            case regionChanged(MKCoordinateRegion)
         }
     }
     
@@ -63,36 +63,79 @@ public struct LocationMap: Reducer, Sendable {
             case .destination:
                 return .none
                 
-            case let .internal(.authorizationStatusUpdated(status)):
-                logger.debug("Authorization status updated: \(status.customDumpDescription)")
+            case .internal(.regionChanged(let region)):
+                state.cameraPosition = .region(region)
                 return .none
+                
+            case .internal(.authorizationStatusChanged(let status)):
+                switch status {
+                case .denied, .restricted:
+                    state.destination = .alert(.serviceDisabled)
+                case .notDetermined:
+                    break
+                case .authorizedAlways, .authorizedWhenInUse:
+                    break
+                @unknown default:
+                    break
+                }
+                return .none
+                
+            case .internal(.startLocationUpdates):
+                return .run { send in
+                    await location.start()
+                    
+                    for await event in location.events() {
+                        switch event {
+                        case let .didUpdateLocation(location):
+                            logger.debug("Did update location: \(location)")
+                            await send(.internal(.regionChanged(MKCoordinateRegion(
+                                center: location.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                            ))))
+                        case let .didChangeAuthorization(status):
+                            logger.debug("Authorization status changed: \(status.rawValue)")
+                            await send(.internal(.authorizationStatusChanged(status)))
+                        case let .didFailWithError(error):
+                            logger.error("Failed with error: \(error)")
+                        }
+                    }
+                }
                 
             case .view(.binding):
                 return .none
                 
             case .view(.onAppear):
-                return .run { send in
-//                    await send(.internal(.checkLocationServices))
-//                    await location.requestAuthorization()
+                let authorizationStatus = location.authorizationStatus()
+                
+                switch authorizationStatus {
+                case .notDetermined:
+                    return .run { send in
+                        await location.requestAuthorization(type: .always)
+                        await send(.internal(.startLocationUpdates))
+                    }
                     
-//                    if location.authorizationStatus() == .authorizedWhenInUse {
-//                        await send(.view(.startContinuousUpdates))
-//                    }
+                case .authorizedWhenInUse, .authorizedAlways:
+                    return .run { send in
+                        await send(.internal(.startLocationUpdates))
+                    }
+                    
+                case .restricted, .denied:
+                    state.destination = .alert(.serviceDisabled)
+                    return .none
+                    
+                @unknown default:
+                    return .none
                 }
                 
             case .view(.getCurrentLocationButtonTapped):
-                guard !state.isLoading else { return .none }
-                state.isLoading = true
+                let status = location.authorizationStatus()
+                
+                let isAuthorized = status == .authorizedWhenInUse || status == .authorizedAlways
+                guard isAuthorized else { return .none }
                 
                 return .run { send in
-//                    await send(.internal(.locationResult(Result {
-//                        try await location.getCurrentLocation()
-//                    })))
+                    await location.requestLocation()
                 }
-
-            case let .view(.regionChanged(region)):
-                state.cameraPosition = .region(region)
-                return .none
             }
         }
         .ifLet(\.$destination, action: \.destination)
