@@ -44,8 +44,17 @@ public struct LocationMapView: View {
             send(.onAppear)
         }
         .alert(
-            store: self.store.scope(state: \.$destination.alert, action: \.destination.alert)
+            store: self.store.scope(
+                state: \.$destination.alert,
+                action: \.destination.alert
+            )
         )
+//        .alert(
+//            store: self.store.scope(
+//                state: \.$destination.plainAlert,
+//                action: \.destination.plainAlert
+//            )
+//        )
     }
 }
 

@@ -34,18 +34,13 @@ extension LocationClient: DependencyKey {
             stop: {
                 manager.stopUpdatingLocation()
             },
-            requestLocation: {
-                manager.requestLocation()
-            },
             getCurrentLocation: {
-                guard CLLocationManager.locationServicesEnabled() else {
-                    throw LocationError.serviceDisabled
-                }
-                
                 switch manager.authorizationStatus {
                 case .authorizedWhenInUse, .authorizedAlways:
                     if let location = manager.location {
                         return location
+                    } else {
+                        manager.requestLocation()
                     }
                     throw LocationError.failed
                 default:

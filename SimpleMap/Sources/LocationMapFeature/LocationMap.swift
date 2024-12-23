@@ -2,6 +2,7 @@ import ComposableArchitecture
 import _MapKit_SwiftUI
 import CoreLocation
 import Foundation
+import UIKit
 import MapKit
 import OSLog
 
@@ -35,12 +36,23 @@ public struct LocationAuthorization: Reducer, Sendable {
                 let status = location.authorizationStatus()
                 state.authorizationStatus = status
                 
-                if status == .notDetermined {
+                switch status {
+                case .notDetermined:
                     return .concatenate(
                         .send(.startListening),
                         .send(.requestAuthorization)
                     )
-                } else {
+                    
+                case .denied, .restricted:
+                    return .concatenate(
+                        .send(.startListening),
+                        .send(.authorizationStatusChanged(status))
+                    )
+                    
+                case .authorizedAlways, .authorizedWhenInUse:
+                    return .send(.startListening)
+                    
+                @unknown default:
                     return .send(.startListening)
                 }
                 
@@ -126,14 +138,15 @@ public struct LocationUpdates: Reducer, Sendable {
                         try await location.getCurrentLocation()
                     }))
                 }
-
-            case .onLocationUpdate(let result):
+                
+            case let .onLocationUpdate(result):
                 switch result {
                 case .success(let location):
                     state.currentLocation = location
                     return .none
                     
                 case .failure(let error):
+                    logger.error("Location error occurred: \(error.localizedDescription)")
                     return .none
                 }
             }
@@ -149,8 +162,8 @@ public struct MapCamera: Reducer, Sendable {
         var cameraPosition: MapCameraPosition
         
         public init(cameraPosition: MapCameraPosition = .region(MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
-            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            center: CLLocationCoordinate2D(latitude: 48.4647, longitude: 35.0462),
+            span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
         ))) {
             self.cameraPosition = cameraPosition
         }
@@ -200,6 +213,12 @@ public struct LocationMap: Reducer, Sendable {
         case camera(MapCamera.Action)
         case destination(PresentationAction<Destination.Action>)
         case view(View)
+        case `internal`(Internal)
+        
+        public enum Internal {
+            case changeDestination(Destination.State)
+            case zoomToCurrentLocation(Result<CLLocation, Error>)
+        }
         
         public enum View: BindableAction {
             case binding(BindingAction<State>)
@@ -210,8 +229,15 @@ public struct LocationMap: Reducer, Sendable {
     
     @Reducer(state: .equatable)
     public enum Destination {
-        case alert(AlertState<Never>)
+        case alert(AlertState<AlertAction>)
+        case plainAlert(AlertState<Never>)
+        
+        public enum AlertAction: Equatable {
+            case openSettings
+        }
     }
+    
+    @Dependency(\.openURL) var openURL
     
     public var body: some ReducerOf<Self> {
         Scope(state: \.authorization, action: \.authorization) {
@@ -233,11 +259,7 @@ public struct LocationMap: Reducer, Sendable {
                 
                 switch status {
                 case .denied, .restricted:
-                    state.destination = .alert(.serviceDisabled)
-                    return .none
-                    
-                case .notDetermined:
-                    return .none
+                    return .send(.internal(.changeDestination(.alert(.serviceDisabled))))
                     
                 case .authorizedAlways, .authorizedWhenInUse:
                     return .concatenate(
@@ -245,7 +267,7 @@ public struct LocationMap: Reducer, Sendable {
                         .send(.updates(.startTracking))
                     )
                     
-                @unknown default:
+                default:
                     return .none
                 }
                 
@@ -253,16 +275,12 @@ public struct LocationMap: Reducer, Sendable {
                 switch result {
                 case .success(let location):
                     logger.debug("Location updated: \(location)")
-                    return .send(.camera(.updateRegion(MKCoordinateRegion(
-                        center: location.coordinate,
-                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                    ))))
+                    return .none
+                    
                 case .failure(let error):
                     logger.error("Location error occurred: \(error.localizedDescription)")
-                    state.destination = .alert(.failed(error))
-                    return .none
+                    return .send(.internal(.changeDestination(.plainAlert(.failed(error)))))
                 }
-                    
                 
             case .view(.binding):
                 return .none
@@ -273,12 +291,31 @@ public struct LocationMap: Reducer, Sendable {
                 
             case .view(.getCurrentLocationButtonTapped):
                 logger.debug("Get current location tapped")
-                let isAuthorized = state.authorization.authorizationStatus == .authorizedWhenInUse
-                    || state.authorization.authorizationStatus == .authorizedAlways
+                
+                let isAuthorized =
+                state.authorization.authorizationStatus == .authorizedWhenInUse ||
+                state.authorization.authorizationStatus == .authorizedAlways
+                
                 guard isAuthorized else { return .none }
                 return .send(.updates(.requestSingleLocation))
                 
-            case .authorization, .updates, .camera, .destination:
+            case .internal(.changeDestination(let destination)):
+                state.destination = destination
+                return .none
+                
+            case .internal(.zoomToCurrentLocation(.success(let location))):
+                return .send(.camera(.updateRegion(MKCoordinateRegion(
+                    center: location.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                ))))
+                
+            case .destination(.presented(.alert(.openSettings))):
+                return .run { _ in
+                    guard let settingsUrl = URL(string: UIApplication.openSettingsURLString) else { return }
+                    await openURL(settingsUrl)
+                }
+                
+            case .authorization, .updates, .camera, .destination, .internal:
                 return .none
             }
         }
@@ -299,13 +336,18 @@ extension AlertState where Action == Never {
             TextState(error.localizedDescription)
         }
     }
-    
+}
+
+extension AlertState where Action == LocationMap.Destination.AlertAction {
     static var serviceDisabled: Self {
         Self {
             TextState("Location Services Disabled")
         } actions: {
+            ButtonState(action: .openSettings) {
+                TextState("Open Settings")
+            }
             ButtonState(role: .cancel) {
-                TextState("OK")
+                TextState("Cancel")
             }
         } message: {
             TextState("Please enable Location Services in Settings to use this feature.")
