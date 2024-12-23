@@ -238,6 +238,7 @@ public struct LocationMap: Reducer, Sendable {
     }
     
     @Dependency(\.openURL) var openURL
+    @Dependency(\.locationClient) var location
     
     public var body: some ReducerOf<Self> {
         Scope(state: \.authorization, action: \.authorization) {
@@ -252,16 +253,20 @@ public struct LocationMap: Reducer, Sendable {
         
         BindingReducer(action: \.view)
         
-        Reduce { state, action in
+        Reduce {
+            state,
+            action in
             switch action {
             case .authorization(.authorizationStatusChanged(let status)):
                 logger.debug("Authorization status changed: \(status.rawValue)")
                 
                 switch status {
-                case .denied, .restricted:
+                case .denied,
+                        .restricted:
                     return .send(.internal(.changeDestination(.alert(.serviceDisabled))))
                     
-                case .authorizedAlways, .authorizedWhenInUse:
+                case .authorizedAlways,
+                        .authorizedWhenInUse:
                     return .concatenate(
                         .send(.updates(.startListening)),
                         .send(.updates(.startTracking))
@@ -297,17 +302,33 @@ public struct LocationMap: Reducer, Sendable {
                 state.authorization.authorizationStatus == .authorizedAlways
                 
                 guard isAuthorized else { return .none }
-                return .send(.updates(.requestSingleLocation))
+                return .run { [state] send in
+                    await send(.updates(.requestSingleLocation))
+                    await send(.internal(.zoomToCurrentLocation(Result {
+                        if let location = state.updates.currentLocation {
+                            return location
+                        } else {
+                            return try await location.getCurrentLocation()
+                        }
+                    })))
+                }
                 
             case .internal(.changeDestination(let destination)):
                 state.destination = destination
                 return .none
                 
-            case .internal(.zoomToCurrentLocation(.success(let location))):
-                return .send(.camera(.updateRegion(MKCoordinateRegion(
-                    center: location.coordinate,
-                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                ))))
+            case .internal(.zoomToCurrentLocation(let result)):
+                switch result {
+                case .success(let location):
+                    return .send(.camera(.updateRegion(MKCoordinateRegion(
+                        center: location.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03)
+                    ))), animation: .spring)
+                    
+                case .failure(let error):
+                    return .send(.internal(.changeDestination(.plainAlert(.failed(error)))))
+                }
+                
                 
             case .destination(.presented(.alert(.openSettings))):
                 return .run { _ in
@@ -315,7 +336,11 @@ public struct LocationMap: Reducer, Sendable {
                     await openURL(settingsUrl)
                 }
                 
-            case .authorization, .updates, .camera, .destination, .internal:
+            case .authorization,
+                    .updates,
+                    .camera,
+                    .destination,
+                    .internal:
                 return .none
             }
         }

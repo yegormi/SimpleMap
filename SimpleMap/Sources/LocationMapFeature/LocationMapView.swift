@@ -21,6 +21,7 @@ public struct LocationMapView: View {
         Map(position: self.$store.camera.cameraPosition) {
             UserAnnotation()
         }
+        .animation(.spring, value: self.store.camera.cameraPosition)
         .mapControls {
             MapUserLocationButton()
             MapCompass()
@@ -28,7 +29,7 @@ public struct LocationMapView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             Button {
-                send(.getCurrentLocationButtonTapped, animation: .smooth)
+                send(.getCurrentLocationButtonTapped, animation: .spring)
             } label: {
                 Image(systemName: "location.fill")
                     .font(.system(size: 22, weight: .medium))
@@ -38,6 +39,7 @@ public struct LocationMapView: View {
                     .clipShape(Circle())
                     .shadow(radius: 4)
             }
+            .buttonStyle(.plain)
             .padding(16)
         }
         .onAppear {
@@ -49,12 +51,12 @@ public struct LocationMapView: View {
                 action: \.destination.alert
             )
         )
-//        .alert(
-//            store: self.store.scope(
-//                state: \.$destination.plainAlert,
-//                action: \.destination.plainAlert
-//            )
-//        )
+        .alert(
+            store: self.store.scope(
+                state: \.$destination.plainAlert,
+                action: \.destination.plainAlert
+            )
+        )
     }
 }
 
