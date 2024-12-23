@@ -18,7 +18,7 @@ public struct LocationMapView: View {
     }
     
     public var body: some View {
-        Map(position: self.$store.cameraPosition) {
+        Map(position: self.$store.camera.cameraPosition) {
             UserAnnotation()
         }
         .mapControls {

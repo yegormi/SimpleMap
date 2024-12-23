@@ -37,8 +37,29 @@ extension LocationClient: DependencyKey {
             requestLocation: {
                 manager.requestLocation()
             },
-            events: {
-                delegate.subject.values
+            getCurrentLocation: {
+                guard CLLocationManager.locationServicesEnabled() else {
+                    throw LocationError.serviceDisabled
+                }
+                
+                switch manager.authorizationStatus {
+                case .authorizedWhenInUse, .authorizedAlways:
+                    if let location = manager.location {
+                        return location
+                    }
+                    throw LocationError.failed
+                default:
+                    throw LocationError.unauthorized
+                }
+            },
+            authorizationUpdates: {
+                delegate.authorizationSubject.values
+            },
+            locationUpdates: {
+                delegate.locationSubject.values
+            },
+            errorUpdates: {
+                delegate.errorSubject.values
             }
         )
     }
@@ -46,19 +67,40 @@ extension LocationClient: DependencyKey {
 
 private extension LocationClient {
     final class Delegate: NSObject, CLLocationManagerDelegate {
-        let subject = PassthroughSubject<Event, Never>()
+        let authorizationSubject = PassthroughSubject<CLAuthorizationStatus, Never>()
+        let locationSubject = PassthroughSubject<CLLocation, Never>()
+        let errorSubject = PassthroughSubject<Error, Never>()
         
         func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-            subject.send(.didChangeAuthorization(status))
+            authorizationSubject.send(status)
         }
         
         func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
             guard let location = locations.last else { return }
-            subject.send(.didUpdateLocation(location))
+            locationSubject.send(location)
         }
         
         func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-            subject.send(.didFailWithError(error))
+            errorSubject.send(error)
+        }
+    }
+}
+
+public enum LocationError: Error {
+    case serviceDisabled
+    case unauthorized
+    case failed
+}
+
+extension LocationError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .serviceDisabled:
+            "Location services are disabled. Please enable them in Settings."
+        case .unauthorized:
+            "Location access is not authorized. Please allow access in Settings."
+        case .failed:
+            "Failed to get location. Please try again."
         }
     }
 }

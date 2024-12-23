@@ -17,7 +17,10 @@ public struct LocationClient: Sendable {
     public var start: @Sendable () async -> Void
     public var stop: @Sendable () async -> Void
     public var requestLocation: @Sendable () async -> Void
-    public var events: @Sendable () -> any AsyncSequence<Event, Never> = { AsyncStream.never }
+    public var getCurrentLocation: @Sendable () async throws -> CLLocation
+    public var authorizationUpdates: @Sendable () -> any AsyncSequence<CLAuthorizationStatus, Never> = { AsyncStream.never }
+    public var locationUpdates: @Sendable () -> any AsyncSequence<CLLocation, Never> = { AsyncStream.never }
+    public var errorUpdates: @Sendable () -> any AsyncSequence<Error, Never> = { AsyncStream.never }
 }
 
 public extension LocationClient {
@@ -27,17 +30,14 @@ public extension LocationClient {
         start: { unimplemented("\(Self.self).start") },
         stop: { unimplemented("\(Self.self).stop") },
         requestLocation: { unimplemented("\(Self.self).requestLocation") },
-        events: { unimplemented("\(Self.self).delegateUpdates", placeholder: AsyncStream.never) }
+        getCurrentLocation: { unimplemented("\(Self.self).getCurrentLocation", placeholder: CLLocation()) },
+        authorizationUpdates: { unimplemented("\(Self.self).authorizationUpdates", placeholder: AsyncStream.never) },
+        locationUpdates: { unimplemented("\(Self.self).locationUpdates", placeholder: AsyncStream.never) },
+        errorUpdates: { unimplemented("\(Self.self).errorUpdates", placeholder: AsyncStream.never) }
     )
 }
 
 public extension LocationClient {
-    enum Event {
-        case didChangeAuthorization(CLAuthorizationStatus)
-        case didUpdateLocation(CLLocation)
-        case didFailWithError(Error)
-    }
-    
     enum AuthorizationType {
         case whenInUse
         case always
